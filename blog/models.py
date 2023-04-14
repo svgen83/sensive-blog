@@ -1,6 +1,7 @@
 from django.db import models
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.db.models import Count
 
 
 class PostQuerySet(models.QuerySet):
@@ -9,6 +10,15 @@ class PostQuerySet(models.QuerySet):
         posts_at_year = self.filter(published_at__year=year
                                     ).order_by('published_at')
         return posts_at_year
+
+
+class TagQuerySet(models.QuerySet):
+
+    def popular(self):
+        popular_tags = Tag.objects.annotate(
+            posts_count = Count('posts')
+            ).order_by('-posts_count')
+        return popular_tags
 
 
 class Post(models.Model):
@@ -47,6 +57,8 @@ class Post(models.Model):
 
 
 class Tag(models.Model):
+    objects = TagQuerySet.as_manager()
+    
     title = models.CharField('Тег', max_length=20, unique=True)
 
     def __str__(self):
