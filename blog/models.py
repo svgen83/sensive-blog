@@ -28,7 +28,6 @@ class PostQuerySet(models.QuerySet):
         for post in self:
             post.comments_count = count_for_id[post.id]
         return self
-            
 
 
 class TagQuerySet(models.QuerySet):
