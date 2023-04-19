@@ -6,11 +6,6 @@ from django.db.models import Count
 
 class PostQuerySet(models.QuerySet):
 
-    def year(self, year):
-        posts_at_year = self.filter(published_at__year=year
-                                    ).order_by('published_at')
-        return posts_at_year
-    
     def popular(self):
         popular_posts = Post.objects.annotate(
             likes_count = Count('likes')
@@ -29,6 +24,20 @@ class PostQuerySet(models.QuerySet):
             post.comments_count = count_for_id[post.id]
         return self
 
+    def fetch_with_tags_count(self):
+        posts_ids = [post.id for post in self]
+        posts_with_tags = Post.objects.filter(
+            id__in=posts_ids
+        ).annotate(tags_count=Count('tags__posts'))
+        ids_and_tags = posts_with_tags.values_list(
+            'id',
+            'tags_count',
+        )
+        count_for_id = dict(ids_and_tags)
+        for post in self:
+            post.tags_count = count_for_id[post.id]
+        return self
+
 
 class TagQuerySet(models.QuerySet):
 
@@ -40,7 +49,6 @@ class TagQuerySet(models.QuerySet):
 
 
 class Post(models.Model):
-    objects = PostQuerySet.as_manager()
     title = models.CharField('Заголовок', max_length=200)
     text = models.TextField('Текст')
     slug = models.SlugField('Название в виде url', max_length=200)
@@ -62,22 +70,29 @@ class Post(models.Model):
         related_name='posts',
         verbose_name='Теги')
 
-    def __str__(self):
-        return self.title
-
-    def get_absolute_url(self):
-        return reverse('post_detail', args={'slug': self.slug})
+    objects = PostQuerySet.as_manager()
 
     class Meta:
         ordering = ['-published_at']
         verbose_name = 'пост'
         verbose_name_plural = 'посты'
 
+    def __str__(self):
+        return self.title
 
-class Tag(models.Model):
-    objects = TagQuerySet.as_manager()
-    
+    def get_absolute_url(self):
+        return reverse('post_detail', args={'slug': self.slug})
+
+
+class Tag(models.Model):    
     title = models.CharField('Тег', max_length=20, unique=True)
+
+    objects = TagQuerySet.as_manager()
+
+    class Meta:
+        ordering = ['title']
+        verbose_name = 'тег'
+        verbose_name_plural = 'теги'
 
     def __str__(self):
         return self.title
@@ -87,11 +102,6 @@ class Tag(models.Model):
 
     def get_absolute_url(self):
         return reverse('tag_filter', args={'tag_title': self.slug})
-
-    class Meta:
-        ordering = ['title']
-        verbose_name = 'тег'
-        verbose_name_plural = 'теги'
 
 
 class Comment(models.Model):
@@ -108,10 +118,12 @@ class Comment(models.Model):
     text = models.TextField('Текст комментария')
     published_at = models.DateTimeField('Дата и время публикации')
 
-    def __str__(self):
-        return f'{self.author.username} under {self.post.title}'
-
     class Meta:
         ordering = ['published_at']
         verbose_name = 'комментарий'
         verbose_name_plural = 'комментарии'
+
+    def __str__(self):
+        return f'{self.author.username} under {self.post.title}'
+
+
