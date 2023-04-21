@@ -38,11 +38,14 @@ class PostQuerySet(models.QuerySet):
         return self
 
     def fetch_tag_author(self, tags):
-        return self.prefetch_related('author', Prefetch('tags', queryset=tags))
+        return self.prefetch_related('author',
+                                     Prefetch('tags',
+                                              queryset=tags))
 
     def fetch_comments_count(self):
         return self.annotate(
-             comments_count = Count('comments')).order_by('-published_at')
+             comments_count = Count('comments')).order_by(
+                 '-published_at')
 
 
 class TagQuerySet(models.QuerySet):
